@@ -17,8 +17,10 @@
  */
 package org.jitsi.jicofo;
 
+import org.jitsi.impl.protocol.xmpp.ChatMemberImpl;
 import org.jitsi.utils.*;
 import org.jitsi.xmpp.extensions.colibri.*;
+import org.jitsi.xmpp.extensions.jibri.JibriIq;
 import org.jitsi.xmpp.extensions.jingle.*;
 import net.java.sip.communicator.service.protocol.*;
 import net.java.sip.communicator.service.protocol.event.*;
@@ -668,6 +670,10 @@ public class JitsiMeetConferenceImpl
                 idleTimestamp = -1;
             }
 
+            if (chatRoom.getMembers().size() == 1) {
+                startStreaming(chatRoomMember);
+            }
+
             // Are we ready to start ?
             if (!checkMinParticipants())
             {
@@ -693,6 +699,55 @@ public class JitsiMeetConferenceImpl
                 inviteChatMember(chatRoomMember, true);
             }
         }
+    }
+
+    private void startStreaming(XmppChatMember chatRoomMember) {
+        // start Video Stream
+        JibriIq jibriIq = new JibriIq();
+
+        jibriIq.setRecordingMode(JibriIq.RecordingMode.STREAM);
+        jibriIq.setStreamId("21");  // magic Stream Number set in Zenium
+        jibriIq.setFrom(chatRoomMember.getOccupantJid());
+        jibriIq.setAction(JibriIq.Action.START);
+
+        new java.util.Timer().schedule(
+                new java.util.TimerTask() {
+                    @Override
+                    public void run() {
+                        jibriOpSet.handleIQRequest(jibriIq);
+                    }
+                },
+                500
+        );
+    }
+
+
+    private void stopStreaming(XmppChatMember chatRoomMember) {
+        // start Video Stream
+        JibriIq jibriIq = new JibriIq();
+
+        jibriIq.setRecordingMode(JibriIq.RecordingMode.STREAM);
+//        jibriIq.setStreamId("21");  // magic Stream Number set in Zenium
+        jibriIq.setFrom(chatRoomMember.getOccupantJid());
+        jibriIq.setAction(JibriIq.Action.STOP);
+
+//        new java.util.Timer().schedule(
+//                new java.util.TimerTask() {
+//                    @Override
+//                    public void run() {
+        jibriOpSet.handleIQRequest(jibriIq);
+//                    }
+//                },
+//                500
+//        );
+    }
+
+    private int getMembersCountWithoutRobots() {
+        int result = 0;
+        for (ChatRoomMember chatRoomMember : chatRoom.getMembers()) {
+            if (chatRoomMember instanceof ChatMemberImpl && !((ChatMemberImpl)chatRoomMember).isRobot()) result++;
+        }
+        return result;
     }
 
     /**
@@ -1256,13 +1311,13 @@ public class JitsiMeetConferenceImpl
                             + " terminated already or never started ?");
             }
 
-            if (participants.size() == 1)
-            {
-                rescheduleSingleParticipantTimeout();
-            }
-            else if (participants.size() == 0)
+            if (getMembersCountWithoutRobots() == 0) // participants.size() == 0
             {
                 stop();
+            }
+            else if (participants.size() == 1)
+            {
+                rescheduleSingleParticipantTimeout();
             }
         }
     }

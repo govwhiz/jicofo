@@ -120,7 +120,7 @@ public class JibriRecorder
      * {@inheritDoc}
      */
     @Override
-    protected IQ handleStartRequest(JibriIq iq)
+    public IQ handleStartRequest(JibriIq iq)
     {
         RecordingMode recordingMode = iq.getRecordingMode();
         String streamID = iq.getStreamId();
